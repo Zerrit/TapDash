@@ -24,7 +24,6 @@ public class AudioManager : MonoBehaviour
 
 		GameManager.instance.tapEvent += PlayTapSound;
 		//GameManager.instance.crystalTaken.AddListener(PlayCrystalSound);
-		GameManager.instance.dificultyEvent += SetRunSoundSpeed;
 		GameManager.instance.levelComplete.AddListener(PlayCompleteSound);
 		GameManager.instance.levelLose.AddListener(PlayLoseSound);
 		GameManager.instance.levelStart.AddListener(PlayRunSound);
@@ -67,7 +66,10 @@ public class AudioManager : MonoBehaviour
 		StopAllCoroutines();
 		Play("Lose");
 	}
-
+	public void SwitchSoundMode()
+	{
+		AudioListener.pause = !AudioListener.pause;
+	}
 	private void PlayCrystalSound()
     {
 		Play("Crystal");
@@ -91,8 +93,12 @@ public class AudioManager : MonoBehaviour
 		}
     }
 
-	private void SetRunSoundSpeed(int speed)
+    public void ChangeRunSoundSpeed()
     {
-		currentRunSound = speed;
+        currentRunSound = Mathf.Clamp(++currentRunSound, 1, 3);
+    }
+    public void ChangeRunSoundSpeed(int index)
+    {
+		currentRunSound = index;
     }
 }

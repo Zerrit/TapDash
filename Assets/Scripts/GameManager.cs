@@ -7,23 +7,25 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager instance;
 
-    public int currentLevelId;
+    public int currentLevelId { get; private set; }
 
-    public LevelsConstructor levelConstructor;
-    public UIController uiController;
-    public AudioManager audioManager;
+    public LevelController levelController { get; private set; }
+    public CameraController cameraController { get; private set; }
+    public UIController uiController { get; private set; }
+    public AudioManager audioManager { get; private set; }
+    public ScoreController scoreController { get; private set; }
+
 
     //События >>
     public delegate void CommandEvent(Commands command);
-    public delegate void GameDificulty(int dificultyParameter);
+    public event CommandEvent tapEvent;  // Эвент тапа по экрану при управлении персонажем
 
-    public event CommandEvent tapEvent;  // Эвента тапа по экрану при управлении персонажем
-    public event GameDificulty dificultyEvent; // Эвент задания уровня сложности
+    public UnityEvent crystalTaken; // Событие подбора кристалика
+    public UnityEvent levelComplete; // Событие прохождения уровня
+    public UnityEvent levelLose; // СОбытие проигрыша
+    public UnityEvent levelStart; // Событие старта уровня
 
-    public UnityEvent crystalTaken;
-    public UnityEvent levelComplete; 
-    public UnityEvent levelLose;
-    public UnityEvent levelStart;
+
     //События <<
 
 
@@ -32,32 +34,41 @@ public class GameManager : MonoBehaviour
         if (!instance) instance = this;
         else if (instance == this) Destroy(this);
 
-        LoadCurrentLevel(); 
+        LoadCurrentLevel();
 
         //Подписки на события
         levelComplete.AddListener(LevelComplete);
+        levelComplete.AddListener(cameraController.ChangeCameraDificulty);
+        levelComplete.AddListener(audioManager.ChangeRunSoundSpeed);
+        levelComplete.AddListener(scoreController.ChangeMultipliyer);
         levelLose.AddListener(LevelLose);
+        uiController.menuPanel.sound.onClick.AddListener(audioManager.SwitchSoundMode);
     }
 
-    public void StartLevel() // Старт игры и запуск соответствующего события
+    public void StartLevel(int levelNumber) // Старт игры и запуск соответствующего события
     {
-        levelConstructor.CreateLevel(currentLevelId);
+        levelController.CreateStartLevel(levelNumber);
+        levelStart.Invoke();
+    }
+    public void StartLastLevel() // Старт игры и запуск соответствующего события
+    {
+        levelController.CreateStartLevel(currentLevelId);
         levelStart.Invoke();
     }
     public void RestartLevel() // Рестарт игры и запуск соответствующего события
     {
-        levelConstructor.RestartLevel();
+        levelController.RestartLevel();
         levelStart.Invoke();
     }
     public void ReturnToMenu() // Открывает панель меню и запускает удаление уровней
     {
         uiController.OpenMenuPanel();
-        levelConstructor.ClearAllLevels();
+        levelController.ClearAllLevels();
     }
     private void LevelComplete() // Отметка о прохождении уровня и создание следующего уровня
     {
         currentLevelId++;
-        levelConstructor.LoadNextLevel();
+        levelController.CreateNextLevel();
     }
     private void LevelLose() // Запуск панели проигрыша
     {
@@ -69,27 +80,28 @@ public class GameManager : MonoBehaviour
     {
         tapEvent?.Invoke(command);
     }
-    public void DificultyEventActivate(int speedDif)
+    public void SetDifficulty(int index)
     {
-        dificultyEvent?.Invoke(speedDif);
+        cameraController.ChangeCameraDificulty(index);
+        audioManager.ChangeRunSoundSpeed(index);
+        scoreController.ChangeMultipliyer(index);
     }
-
-
 
     private void LoadCurrentLevel() // Загружает текущий уровень игрока из PlayerPrefs
     {
-        if (PlayerPrefs.HasKey("MaxLvl"))
+        if (PlayerPrefs.HasKey("CurrentLvlId"))
         {
-            currentLevelId = PlayerPrefs.GetInt("MaxLvl");
+            currentLevelId = PlayerPrefs.GetInt("CurrentLvlId");
         }
         else
         {
             currentLevelId = 0;
+            PlayerPrefs.SetInt("CurrentLvlId", 0);
         }
     }
     private void SaveCurrentLevel() // Сохранение текущего уровня в PlayerPrefs
     {
-        PlayerPrefs.SetInt("MaxLvl", currentLevelId);
+        PlayerPrefs.SetInt("CurrentLvlId", currentLevelId);
         PlayerPrefs.Save();
     }
 }

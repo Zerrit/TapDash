@@ -21,7 +21,6 @@ public class ScoreController : MonoBehaviour
 
     public void Start()
     {
-        GameManager.instance.dificultyEvent += (SetMultipliyer);
         GameManager.instance.crystalTaken.AddListener(IncreaseScore);
         GameManager.instance.tapEvent += IncreaseScore;
         GameManager.instance.levelStart.AddListener(SetLevel);
@@ -68,7 +67,11 @@ public class ScoreController : MonoBehaviour
         currentLevelText.text = currentLevel.ToString();
     }
 
-    private void SetMultipliyer(int multipliyer)
+    public void ChangeMultipliyer()
+    {
+        scoreMiltiplier = Mathf.Clamp(++scoreMiltiplier, 1, 3);
+    }
+    public void ChangeMultipliyer(int multipliyer)
     {
         scoreMiltiplier = multipliyer;
     }

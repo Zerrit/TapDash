@@ -8,7 +8,7 @@ public class CameraController : MonoBehaviour
     private Transform camTransform;
     private Camera cam;
 
-    public int levelDificulty;
+    private int cameraDificulty;
 
     private void Start()
     {
@@ -17,8 +17,8 @@ public class CameraController : MonoBehaviour
         camTransform.position = new Vector3(player.position.x, player.position.y, -2);
 
         GameManager.instance.tapEvent += TapRotation;
-        GameManager.instance.dificultyEvent += SetCameraSize;
         GameManager.instance.levelStart.AddListener(SetDefaultRotation);
+        GameManager.instance.levelLose.AddListener(SetLoseCamera);
     }
 
     private void LateUpdate()
@@ -28,35 +28,40 @@ public class CameraController : MonoBehaviour
 
     private void TapRotation(Commands command)
     {
-        
-        switch (levelDificulty)
+        switch (cameraDificulty)
         {
             case 1:
-                if (command == Commands.TurnLeft) StartCoroutine(TurnCamera(camTransform.eulerAngles.z, 90f));
-                    
-                if (command == Commands.TurnRight) StartCoroutine(TurnCamera(camTransform.eulerAngles.z, -90f));
-                    
+                if (command == Commands.TurnLeft) StartCoroutine(TurnCamera(camTransform.eulerAngles.z, 90f)); 
+                if (command == Commands.TurnRight) StartCoroutine(TurnCamera(camTransform.eulerAngles.z, -90f));   
                 break;
 
             case 2:
-
                 if (command == Commands.TurnLeft) StartCoroutine(TurnCamera(camTransform.eulerAngles.z, 40f));
-
                 if (command == Commands.TurnRight) StartCoroutine(TurnCamera(camTransform.eulerAngles.z, -40f));
-
                 break;
 
             case 3:
-
-                if (command != Commands.Jump) StartCoroutine(TurnCamera(camTransform.eulerAngles.z, Random.Range(-200, 200)));
-
+                if (command == Commands.TurnLeft) StartCoroutine(TurnCamera(camTransform.eulerAngles.z, Random.Range(-100, 100)));
+                if (command == Commands.TurnRight) StartCoroutine(TurnCamera(camTransform.eulerAngles.z, Random.Range(-100, 100)));
+                if (command == Commands.Jump) StartCoroutine(TurnCamera(camTransform.eulerAngles.z, Random.Range(-200, 200)));
                 break;
         }
     }
 
-    private void SetCameraSize(int speedDif)
+    private void SetCameraDistance(int value)
     {
-        StartCoroutine(ResizeCamera(cam.orthographicSize, speedDif * .5f));
+        StartCoroutine(ResizeCamera(cam.orthographicSize, value * .5f));
+    }
+
+    public void ChangeCameraDificulty()
+    {
+        cameraDificulty = Mathf.Clamp(++cameraDificulty, 1, 3);
+        SetCameraDistance(cameraDificulty);
+    }
+    public void ChangeCameraDificulty(int value)
+    {
+        cameraDificulty = value;
+        SetCameraDistance(value);
     }
 
     public IEnumerator TurnCamera(float origin, float angle)
@@ -83,7 +88,12 @@ public class CameraController : MonoBehaviour
 
     private void SetDefaultRotation()
     {
-        camTransform.rotation = Quaternion.identity;
+        camTransform.rotation = player.rotation;
+    }
+
+    private void SetLoseCamera()
+    {
+        SetCameraDistance(5);
     }
 
     private void SetDefaultSize()

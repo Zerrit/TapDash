@@ -6,9 +6,7 @@ using UnityEngine.UI;
 public class LoseScreen : MonoBehaviour
 {
     public Button restart;
-    public Button levels;
     public Button menu;
-    public Button settings;
 
     private void OnEnable()
     {
@@ -20,8 +18,6 @@ public class LoseScreen : MonoBehaviour
     {
         menu.onClick.RemoveAllListeners();
         restart.onClick.RemoveAllListeners();
-        //levels.onClick.RemoveAllListeners();
-        //settings.onClick.RemoveAllListeners();
     }
 
     private void RestartButtonClick()
@@ -30,19 +26,9 @@ public class LoseScreen : MonoBehaviour
         gameObject.SetActive(false);
     }
 
-    private void LevelsButtonClick()
-    {
-
-    }
-
     private void MenuButtonClick()
     {
         GameManager.instance.ReturnToMenu();
         gameObject.SetActive(false);
-    }
-
-    private void SettingsButtonClick()
-    {
-
     }
 }

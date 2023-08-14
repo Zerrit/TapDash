@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -14,16 +15,15 @@ public class Character : MonoBehaviour
     private Vector2 moveDirection = new Vector2(0, 1);
     private int defaultSpeed = 3;
 
-    public int levelDificulty = 1;
-    public bool isCanTapping = false; // Флак доступности управления персонажем
-    public bool isImmortal;
-    public float moveSpeed;
-    public int currentCommandNumber; // Номер текущей команды
+    [SerializeField] private int speedDificulty = 1;
+    [SerializeField] private bool isCanTapping = false; // Флак доступности управления персонажем
+    [SerializeField] private bool isImmortal;
+    [SerializeField] private float moveSpeed;
+    [SerializeField] private int currentCommandId = 0; // Номер текущей команды
+    [SerializeField] public List<Commands> commands = new List<Commands>();
+    [SerializeField] private Commands nextCommand;
 
-    public List<Arrow> arrows = new List<Arrow>(); //Список стрелок на уровне, хранящих действие
-    public Commands nextCommand;
     public Transform roadChecker; // Объект для проверки обрыва
-
     private Transform player;
     private Animator anim;
 
@@ -31,9 +31,6 @@ public class Character : MonoBehaviour
     {
         player = GetComponent<Transform>();
         anim = GetComponent<Animator>();
-
-        GameManager.instance.dificultyEvent += ChangeSpeedDif;
-
         StopPlayer();
     }
 
@@ -44,12 +41,15 @@ public class Character : MonoBehaviour
         CheckTap();
     }
     
-    public void SetNextCommand() // Переключение на следующую команду, выключение пройденной стрелки и подсветка следующей
+    private void SetNextCommand() // Установка следующей команды
     {
-        arrows[currentCommandNumber].TurnOff();
-        currentCommandNumber++;
-        nextCommand = arrows[currentCommandNumber].command;
-        arrows[currentCommandNumber].Activate();
+        currentCommandId++;
+        nextCommand = commands[currentCommandId];
+    }
+    private void SetStartCommand() // Установка стартовой команды уровня
+    {
+        currentCommandId = 0;
+        nextCommand = commands[currentCommandId];
     }
     public void Tap() // Управление персонажа "Тапом". Запускает соответствующий эвент в скрипте GameManager
     {
@@ -59,7 +59,8 @@ public class Character : MonoBehaviour
         switch (nextCommand)
         {
             case Commands.Jump:
-                Jump();
+                StartCoroutine(Jump());
+                //Jump();
                 SetNextCommand();
                 break;
 
@@ -74,30 +75,39 @@ public class Character : MonoBehaviour
                 break;
         } 
     }
-    public void Jump() // Прыжок
+
+    private IEnumerator Jump()
     {
         isImmortal = true;
+        isCanTapping = false;
         anim.SetTrigger("Jump");
-    } 
-    public void EndJump() // Завершение прыжка
-    {
+        float t = Time.time;
+        while ((t+0.6f - (0.1f * speedDificulty)) > Time.time)
+        {
+            yield return null;
+        }
         isImmortal = false;
         anim.SetTrigger("Run");
+        isCanTapping = true;
     }
-
-    public IEnumerator MoveToCentre(float origin, float centre)  // Центрирование персонажа
+    public IEnumerator MoveToCentre(Vector3 origin, Vector3 centre)  // Центрирование персонажа
     {
         isCanTapping = false;
-
         float t = 0;
         while (t < 1)
         {
             yield return null;
             t += 5f * Time.deltaTime;
-            player.position = new Vector3(Mathf.Lerp(origin, centre, t), player.position.y, -1);
+            if (isPayerDirectionVecrtical(player.eulerAngles.z))
+            {
+                player.position = new Vector3(Mathf.Lerp(origin.x, centre.x, t), player.position.y, -1);
+            }
+            else
+            {
+                player.position = new Vector3(player.position.x, Mathf.Lerp(origin.y, centre.y, t), -1);
+            }
         }
-
-        isCanTapping = true;
+        //isCanTapping = true;
     } 
     public IEnumerator Turn(float origin, float angle)  // Поворот персонажа
     {
@@ -112,6 +122,7 @@ public class Character : MonoBehaviour
     public IEnumerator StartPlayer()    // Запуск персонажа
     {
         yield return new WaitForFixedUpdate();
+        //yield return new WaitForSeconds(0.1f);
         anim.SetTrigger("Run");
         SetMoveSpeed();
         isImmortal = false;
@@ -130,43 +141,41 @@ public class Character : MonoBehaviour
         {
             anim.SetTrigger("Fall");
             StopPlayer();
-            levelDificulty = 1;
+            speedDificulty = 1;
 
             GameManager.instance.levelLose.Invoke();
         }
     }
     public void CompleteLevel() // Запуск события о прохождении уровня
     {
-        GameManager.instance.DificultyEventActivate(Mathf.Clamp(levelDificulty + 1, 1, 3));
+        ChangeSpeedDifficulty();
         SetMoveSpeed();
         GameManager.instance.levelComplete.Invoke();
     }
-    public void MoveToStart(Transform point) // Перемещение персонажа на точку старта текущего уровня
+    public void MoveToStart(Vector3 point, Quaternion playerRotation) // Перемещение персонажа на точку старта текущего уровня
     {
-        player.rotation = Quaternion.identity;
-        player.Translate(point.position - player.position);
+        currentCommandId = 0;
+        player.rotation = playerRotation;
+        player.Translate(point - player.position, Space.World);
         StopPlayer();
-        SetStartCommand();
+        StartCharacter();
     }
     public void SetDefaultPos() // Перемещение персонажа в нулевые координаты (Необходимо при перезапуске уровня из меню)
     {
         player.rotation = Quaternion.identity;
         player.position = new Vector3(0, 0, -1);
+        anim.SetTrigger("OnStart");
         StopPlayer();
     }
-    public void SetStartCommand() // Устанавливаие первую команду на выполнение, активирует следующую стрелку и стартует персонажа
+    public void StartCharacter() // Устанавливаие первую команду на выполнение, активирует следующую стрелку и стартует персонажа
     {
-        currentCommandNumber = 0;
-        nextCommand = arrows[currentCommandNumber].command;
-        arrows[currentCommandNumber].Activate();
-
+        SetStartCommand();
         StartCoroutine(StartPlayer());
     }
     public void StopPlayer()
     {
         moveSpeed = 0;
         anim.SetFloat("Speed", 0);
-
         isImmortal = true;
         isCanTapping = false;
     }
@@ -176,14 +185,28 @@ public class Character : MonoBehaviour
     }
     public void SetMoveSpeed()
     {
-        moveSpeed = Mathf.Clamp((defaultSpeed + levelDificulty), 4, 8);
+        moveSpeed = defaultSpeed + speedDificulty;
         anim.SetFloat("Speed", .25f * moveSpeed);
     }
-    public void ChangeSpeedDif(int speedDif)
+    public void ChangeSpeedDifficulty(int index)
     {
-        levelDificulty = speedDif;
+        speedDificulty = index;
+    }
+    public void ChangeSpeedDifficulty()
+    {
+        speedDificulty = Mathf.Clamp(++speedDificulty, 1, 3);
     }
 
+    public void ClearOldCommands(int countCommands)
+    {
+        commands.RemoveRange(0, countCommands);
+        currentCommandId -= countCommands;
+    }
+    private bool isPayerDirectionVecrtical(float rotation)
+    {
+        if ((Mathf.Abs(rotation) < 5f) || (Mathf.Abs(rotation) > 355f) || (Mathf.Abs(rotation) > 175f && Mathf.Abs(rotation) < 185f)) return true;
+        else return false;
+    }
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
@@ -194,8 +217,8 @@ public class Character : MonoBehaviour
 
         if (collision.tag == "Start" && !isImmortal)
         {
-            CompleteLevel();
-            StartCoroutine(MoveToCentre(player.position.x, collision.transform.position.x));
+            StartCoroutine(MoveToCentre(player.position, collision.transform.position));
+            CompleteLevel();          
         }
 
         if (collision.tag == "Crystal")
@@ -212,7 +235,3 @@ public class Character : MonoBehaviour
         }
     }
 }
-        
-// Рассмотреть вариант с хранение в массиве arrows только объектов текущего уровня. И обновлять их при входе в триггер 
-// стартового сегмента. Этим альтернативным образом можно будет избежать бага при повороте у финиша и упростить скрипт
-// посредством уменьшения количества хранимой и обрабатываемой информации скриптом.
